@@ -1,7 +1,8 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import { getApiServerUrl } from '../lib/api';
 
-const API_SERVER_URL = process.env.API_SERVER_URL || 'http://localhost:5100';
+const API_SERVER_URL = getApiServerUrl();
 const cookie = Astro.request.headers.get('cookie') || '';
 
 let user = null;
@@ -23,48 +24,427 @@ if (!user) {
 }
 ---
 
-<Layout title="Upload AI Listing - Tailspin Shelter">
+<Layout title="Personal Listing Agent - MatchMyMutt">
   <div class="py-8">
-    <div class="max-w-3xl mb-8">
-      <h1 class="text-3xl font-bold text-slate-100 mb-3" data-testid="upload-heading">AI Listing Agent</h1>
+    <div class="max-w-4xl mb-8">
+      <h1 class="text-3xl font-bold text-slate-100 mb-3" data-testid="upload-heading">Personal Listing Agent</h1>
       <p class="text-slate-300">
         Upload pet images and notes to generate a searchable, SEO-ready adoption listing.
       </p>
     </div>
 
-    <section class="bg-slate-800/70 border border-slate-700 rounded-xl p-6" data-testid="upload-panel">
+    <!-- Upload Section -->
+    <section id="upload-section" class="bg-slate-800/70 border border-slate-700 rounded-xl p-6 mb-6" data-testid="upload-panel">
       <div class="grid gap-5">
         <div>
-          <label for="pet-images" class="block text-sm font-medium text-slate-200 mb-2">Pet images</label>
+          <label for="pet-images" class="block text-sm font-medium text-slate-200 mb-2">Pet image</label>
           <input
             id="pet-images"
             type="file"
-            accept="image/*"
-            multiple
+            accept="image/jpeg,image/png,image/gif,image/webp"
             class="block w-full text-sm text-slate-300 file:mr-4 file:rounded-lg file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-white hover:file:bg-blue-700"
             data-testid="upload-images"
           />
+          <p class="mt-1 text-xs text-slate-400">Supported: JPG, PNG, GIF, WebP</p>
+        </div>
+
+        <!-- Image Preview -->
+        <div id="image-preview-container" class="hidden">
+          <img id="image-preview" src="" alt="Preview" class="max-h-64 rounded-lg border border-slate-600" />
         </div>
 
         <div>
-          <label for="pet-notes" class="block text-sm font-medium text-slate-200 mb-2">Known notes</label>
+          <label for="pet-notes" class="block text-sm font-medium text-slate-200 mb-2">Pet Details (name, breed, etc.)</label>
           <textarea
             id="pet-notes"
-            rows="5"
+            rows="3"
             class="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-slate-100 focus:border-blue-400 focus:outline-none"
-            placeholder="Name, temperament, medical notes, intake source, or adoption restrictions"
+            placeholder="e.g., Name: Bella, Breed: Golden Retriever, Age: 2 years, very friendly..."
             data-testid="upload-notes"
           ></textarea>
         </div>
 
+        <div class="flex items-center gap-4">
+          <button
+            type="button"
+            id="generate-btn"
+            class="rounded-lg bg-blue-600 px-5 py-2.5 font-medium text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            data-testid="generate-listing"
+          >
+            <span id="generate-btn-text">Generate listing draft</span>
+            <span id="generate-btn-loading" class="hidden">
+              <svg class="animate-spin inline-block w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Analyzing with AI...
+            </span>
+          </button>
+          <p id="upload-error" class="hidden text-sm text-red-400" data-testid="upload-error"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- AI Preview Section (hidden initially) -->
+    <section id="preview-section" class="hidden bg-slate-800/70 border border-slate-700 rounded-xl p-6 mb-6" data-testid="preview-panel">
+      <div class="flex items-center justify-between mb-6">
+        <h2 class="text-xl font-bold text-slate-100">AI-Generated Listing Preview</h2>
+        <span class="px-3 py-1 bg-green-600/20 text-green-400 text-sm rounded-full">AI Generated</span>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-6">
+        <!-- Left Column: Image & Basic Info -->
+        <div class="space-y-4">
+          <img id="preview-image" src="" alt="Pet" class="w-full rounded-lg border border-slate-600" />
+          
+          <div>
+            <label for="pet-name" class="block text-sm font-medium text-slate-200 mb-2">Pet Name *</label>
+            <input
+              type="text"
+              id="pet-name"
+              class="w-full rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-slate-100 focus:border-blue-400 focus:outline-none"
+              placeholder="Enter pet's name"
+              data-testid="pet-name-input"
+            />
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="bg-slate-900/50 rounded-lg p-3">
+              <p class="text-xs text-slate-400">Breed</p>
+              <p id="preview-breed" class="text-slate-100 font-medium">-</p>
+            </div>
+            <div class="bg-slate-900/50 rounded-lg p-3">
+              <p class="text-xs text-slate-400">Estimated Age</p>
+              <p id="preview-age" class="text-slate-100 font-medium">-</p>
+            </div>
+            <div class="bg-slate-900/50 rounded-lg p-3">
+              <p class="text-xs text-slate-400">Size</p>
+              <p id="preview-size" class="text-slate-100 font-medium">-</p>
+            </div>
+            <div class="bg-slate-900/50 rounded-lg p-3">
+              <p class="text-xs text-slate-400">Gender</p>
+              <p id="preview-gender" class="text-slate-100 font-medium">-</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: AI Content -->
+        <div class="space-y-4">
+          <div>
+            <p class="text-xs text-slate-400 mb-1">SEO Title</p>
+            <p id="preview-title" class="text-lg font-semibold text-blue-400">-</p>
+          </div>
+
+          <div>
+            <p class="text-xs text-slate-400 mb-1">Description</p>
+            <p id="preview-description" class="text-slate-300 text-sm leading-relaxed">-</p>
+          </div>
+
+          <div>
+            <p class="text-xs text-slate-400 mb-2">Personality Traits</p>
+            <div id="preview-traits" class="flex flex-wrap gap-2">-</div>
+          </div>
+
+          <div>
+            <p class="text-xs text-slate-400 mb-2">Adoption Highlights</p>
+            <ul id="preview-highlights" class="space-y-1 text-sm text-slate-300">-</ul>
+          </div>
+
+          <div>
+            <p class="text-xs text-slate-400 mb-2">Tags</p>
+            <div id="preview-tags" class="flex flex-wrap gap-2">-</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Missing Info Warning -->
+      <div id="missing-info-warning" class="hidden mt-4 p-3 bg-yellow-600/20 border border-yellow-600/30 rounded-lg">
+        <p class="text-sm text-yellow-400">
+          <strong>Note:</strong> Some information couldn't be determined from the image:
+          <span id="missing-info-list"></span>
+        </p>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex gap-4 mt-6 pt-6 border-t border-slate-700">
         <button
           type="button"
-          class="w-fit rounded-lg bg-blue-600 px-4 py-2 font-medium text-white hover:bg-blue-700 transition-colors"
-          data-testid="generate-listing"
+          id="create-listing-btn"
+          class="rounded-lg bg-green-600 px-5 py-2.5 font-medium text-white hover:bg-green-700 transition-colors disabled:opacity-50"
+          data-testid="create-listing"
         >
-          Generate listing draft
+          Create Listing
         </button>
+        <button
+          type="button"
+          id="start-over-btn"
+          class="rounded-lg bg-slate-600 px-5 py-2.5 font-medium text-white hover:bg-slate-500 transition-colors"
+        >
+          Start Over
+        </button>
+        <p id="create-error" class="hidden text-sm text-red-400 self-center"></p>
+      </div>
+    </section>
+
+    <!-- Success Message (hidden initially) -->
+    <section id="success-section" class="hidden bg-green-600/20 border border-green-600/30 rounded-xl p-6" data-testid="success-panel">
+      <div class="text-center">
+        <svg class="w-16 h-16 text-green-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <h2 class="text-2xl font-bold text-green-400 mb-2">Listing Created!</h2>
+        <p class="text-slate-300 mb-6">Your AI-generated pet listing has been published.</p>
+        <div class="flex justify-center gap-4">
+          <a
+            id="view-listing-link"
+            href="/"
+            class="rounded-lg bg-green-600 px-5 py-2.5 font-medium text-white hover:bg-green-700 transition-colors"
+          >
+            View Listing
+          </a>
+          <button
+            type="button"
+            id="create-another-btn"
+            class="rounded-lg bg-slate-600 px-5 py-2.5 font-medium text-white hover:bg-slate-500 transition-colors"
+          >
+            Create Another
+          </button>
+        </div>
       </div>
     </section>
   </div>
 </Layout>
+
+<script>
+  // State
+  let currentAnalysis: any = null;
+  let currentImageFilename: string = '';
+
+  // Elements
+  const uploadSection = document.getElementById('upload-section');
+  const previewSection = document.getElementById('preview-section');
+  const successSection = document.getElementById('success-section');
+  const imageInput = document.getElementById('pet-images') as HTMLInputElement;
+  const notesInput = document.getElementById('pet-notes') as HTMLTextAreaElement;
+  const generateBtn = document.getElementById('generate-btn');
+  const generateBtnText = document.getElementById('generate-btn-text');
+  const generateBtnLoading = document.getElementById('generate-btn-loading');
+  const uploadError = document.getElementById('upload-error');
+  const imagePreviewContainer = document.getElementById('image-preview-container');
+  const imagePreview = document.getElementById('image-preview') as HTMLImageElement;
+  const createListingBtn = document.getElementById('create-listing-btn');
+  const startOverBtn = document.getElementById('start-over-btn');
+  const createAnotherBtn = document.getElementById('create-another-btn');
+  const createError = document.getElementById('create-error');
+  const petNameInput = document.getElementById('pet-name') as HTMLInputElement;
+
+  // Show image preview when file selected
+  imageInput?.addEventListener('change', () => {
+    const file = imageInput.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (imagePreview && imagePreviewContainer) {
+          imagePreview.src = e.target?.result as string;
+          imagePreviewContainer.classList.remove('hidden');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  // Generate listing
+  generateBtn?.addEventListener('click', async () => {
+    const file = imageInput?.files?.[0];
+    if (!file) {
+      showError(uploadError, 'Please select an image file');
+      return;
+    }
+
+    // Show loading state
+    setLoading(true);
+    hideError(uploadError);
+
+    const formData = new FormData();
+    formData.append('image', file);
+    formData.append('notes', notesInput?.value || '');
+
+    try {
+      const response = await fetch('/api/listing-agent/analyze', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Analysis failed');
+      }
+
+      // Store results
+      currentAnalysis = data.analysis;
+      currentImageFilename = data.image_filename;
+
+      // Populate preview
+      populatePreview(data.analysis, data.image_filename);
+
+      // Show preview section
+      uploadSection?.classList.add('hidden');
+      previewSection?.classList.remove('hidden');
+
+    } catch (err) {
+      showError(uploadError, err instanceof Error ? err.message : 'Failed to analyze image');
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  // Create listing
+  createListingBtn?.addEventListener('click', async () => {
+    const name = petNameInput?.value?.trim();
+    if (!name) {
+      showError(createError, 'Please enter a name for the pet');
+      return;
+    }
+
+    createListingBtn.setAttribute('disabled', 'true');
+    hideError(createError);
+
+    try {
+      const response = await fetch('/api/dogs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          image_filename: currentImageFilename,
+          analysis: currentAnalysis,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create listing');
+      }
+
+      // Update view listing link
+      const viewLink = document.getElementById('view-listing-link');
+      if (viewLink) {
+        viewLink.setAttribute('href', `/dog/${data.dog.id}`);
+      }
+
+      // Show success
+      previewSection?.classList.add('hidden');
+      successSection?.classList.remove('hidden');
+
+    } catch (err) {
+      showError(createError, err instanceof Error ? err.message : 'Failed to create listing');
+    } finally {
+      createListingBtn.removeAttribute('disabled');
+    }
+  });
+
+  // Start over
+  startOverBtn?.addEventListener('click', resetForm);
+  createAnotherBtn?.addEventListener('click', resetForm);
+
+  function resetForm() {
+    currentAnalysis = null;
+    currentImageFilename = '';
+    if (imageInput) imageInput.value = '';
+    if (notesInput) notesInput.value = '';
+    if (petNameInput) petNameInput.value = '';
+    imagePreviewContainer?.classList.add('hidden');
+    previewSection?.classList.add('hidden');
+    successSection?.classList.add('hidden');
+    uploadSection?.classList.remove('hidden');
+    hideError(uploadError);
+    hideError(createError);
+  }
+
+  function setLoading(loading: boolean) {
+    if (loading) {
+      generateBtn?.setAttribute('disabled', 'true');
+      generateBtnText?.classList.add('hidden');
+      generateBtnLoading?.classList.remove('hidden');
+    } else {
+      generateBtn?.removeAttribute('disabled');
+      generateBtnText?.classList.remove('hidden');
+      generateBtnLoading?.classList.add('hidden');
+    }
+  }
+
+  function showError(el: HTMLElement | null, message: string) {
+    if (el) {
+      el.textContent = message;
+      el.classList.remove('hidden');
+    }
+  }
+
+  function hideError(el: HTMLElement | null) {
+    el?.classList.add('hidden');
+  }
+
+  function populatePreview(analysis: any, imageFilename: string) {
+    // Image
+    const previewImg = document.getElementById('preview-image') as HTMLImageElement;
+    if (previewImg) previewImg.src = `/api/images/${imageFilename}`;
+
+    // Basic info
+    const breed = analysis.breed_secondary 
+      ? `${analysis.breed_primary} / ${analysis.breed_secondary}` 
+      : analysis.breed_primary;
+    setText('preview-breed', breed);
+    setText('preview-age', `${analysis.estimated_age_years} years (${analysis.age_confidence})`);
+    setText('preview-size', capitalize(analysis.size_estimate));
+    setText('preview-gender', capitalize(analysis.gender_guess));
+
+    // AI content
+    setText('preview-title', analysis.generated_title);
+    setText('preview-description', analysis.emotional_description);
+
+    // Traits (as badges)
+    const traitsEl = document.getElementById('preview-traits');
+    if (traitsEl) {
+      traitsEl.innerHTML = analysis.detected_traits
+        .map((t: string) => `<span class="px-2 py-1 bg-blue-600/30 text-blue-300 text-xs rounded-full">${t}</span>`)
+        .join('');
+    }
+
+    // Highlights (as list)
+    const highlightsEl = document.getElementById('preview-highlights');
+    if (highlightsEl) {
+      highlightsEl.innerHTML = analysis.adoption_highlights
+        .map((h: string) => `<li class="flex items-start gap-2"><span class="text-green-400">✓</span> ${h}</li>`)
+        .join('');
+    }
+
+    // Tags
+    const tagsEl = document.getElementById('preview-tags');
+    if (tagsEl) {
+      tagsEl.innerHTML = analysis.tags
+        .map((t: string) => `<span class="px-2 py-1 bg-slate-700 text-slate-300 text-xs rounded">#${t}</span>`)
+        .join('');
+    }
+
+    // Missing info warning
+    const missingWarning = document.getElementById('missing-info-warning');
+    const missingList = document.getElementById('missing-info-list');
+    if (analysis.missing_info_flags?.length > 0 && missingWarning && missingList) {
+      missingList.textContent = analysis.missing_info_flags.join(', ');
+      missingWarning.classList.remove('hidden');
+    } else {
+      missingWarning?.classList.add('hidden');
+    }
+  }
+
+  function setText(id: string, text: string) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+  }
+
+  function capitalize(str: string): string {
+    if (!str) return '-';
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+</script>

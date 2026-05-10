@@ -12,13 +12,23 @@ class TestApp(unittest.TestCase):
         # Turn off database initialization for tests
         app.config['TESTING'] = True
         
-    def _create_mock_dog(self, dog_id, name, breed):
+    def _create_mock_dog(self, dog_id, name, breed, ai_generated=False, image_path=None, seo_title=None):
         """Helper method to create a mock dog with standard attributes"""
-        dog = MagicMock(spec=['to_dict', 'id', 'name', 'breed'])
+        dog = MagicMock()
         dog.id = dog_id
         dog.name = name
         dog.breed = breed
-        dog.to_dict.return_value = {'id': dog_id, 'name': name, 'breed': breed}
+        dog.ai_generated = ai_generated
+        dog.image_path = image_path
+        dog.seo_title = seo_title
+        dog.to_dict.return_value = {
+            'id': dog_id, 
+            'name': name, 
+            'breed': breed,
+            'ai_generated': ai_generated,
+            'image_path': image_path,
+            'seo_title': seo_title
+        }
         return dog
         
     def _setup_query_mock(self, mock_query, dogs):
@@ -26,6 +36,7 @@ class TestApp(unittest.TestCase):
         mock_query_instance = MagicMock()
         mock_query.return_value = mock_query_instance
         mock_query_instance.join.return_value = mock_query_instance
+        mock_query_instance.order_by.return_value = mock_query_instance
         mock_query_instance.count.return_value = len(dogs)
         mock_query_instance.offset.return_value = mock_query_instance
         mock_query_instance.limit.return_value = mock_query_instance
@@ -99,7 +110,9 @@ class TestApp(unittest.TestCase):
         self.assertIn('total_pages', data)
         self.assertTrue(isinstance(data['dogs'], list))
         self.assertEqual(len(data['dogs']), 1)
-        self.assertEqual(set(data['dogs'][0].keys()), {'id', 'name', 'breed'})
+        # Updated response includes AI fields
+        expected_keys = {'id', 'name', 'breed', 'ai_generated', 'image_path', 'seo_title'}
+        self.assertTrue(expected_keys.issubset(set(data['dogs'][0].keys())))
 
     @patch('app.User')
     def test_login_success(self, mock_user_model):

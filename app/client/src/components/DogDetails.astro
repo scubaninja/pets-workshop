@@ -1,4 +1,6 @@
 ---
+import { getApiServerUrl } from '../lib/api';
+
 interface Dog {
   id: number;
   name: string;
@@ -7,6 +9,17 @@ interface Dog {
   description: string;
   gender: string;
   status: 'AVAILABLE' | 'PENDING' | 'ADOPTED';
+  // AI-generated fields
+  ai_generated?: boolean;
+  image_path?: string;
+  seo_title?: string;
+  seo_keywords?: string[];
+  tags?: string[];
+  traits?: string[];
+  adoption_highlights?: string[];
+  categories?: string[];
+  size_estimate?: string;
+  age_confidence?: string;
 }
 
 interface Props {
@@ -14,12 +27,28 @@ interface Props {
 }
 
 const { dog } = Astro.props;
+const API_SERVER_URL = getApiServerUrl();
 ---
 
 <div class="bg-slate-800/70 backdrop-blur-sm border border-slate-700 rounded-xl overflow-hidden" data-testid="dog-details">
+  {/* Hero image */}
+  {dog.image_path && (
+    <div class="w-full flex justify-center bg-slate-900/50">
+      <img 
+        src={`${API_SERVER_URL}/api/images/${dog.image_path}`} 
+        alt={dog.name}
+        class="max-w-full max-h-[600px] object-contain"
+      />
+    </div>
+  )}
+
   <div class="p-6">
-    <div class="flex justify-between items-start">
-      <h1 class="text-3xl font-bold text-slate-100 mb-2" data-testid="dog-name">{dog.name}</h1>
+    <div class="flex justify-between items-start flex-wrap gap-2">
+      <div>
+        <h1 class="text-3xl font-bold text-slate-100 mb-2" data-testid="dog-name">
+          {dog.seo_title || dog.name}
+        </h1>
+      </div>
       {dog.status === 'AVAILABLE' ? (
         <span class="bg-green-500/20 text-green-400 text-sm px-3 py-1 rounded-full" data-testid="dog-status">Available</span>
       ) : dog.status === 'PENDING' ? (
@@ -29,7 +58,18 @@ const { dog } = Astro.props;
       )}
     </div>
 
-    <div class="grid grid-cols-2 gap-4 mb-6 mt-4">
+    {/* Tags */}
+    {dog.tags && dog.tags.length > 0 && (
+      <div class="flex flex-wrap gap-2 mt-3 mb-4">
+        {dog.tags.map((tag: string) => (
+          <span class="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full">
+            {tag}
+          </span>
+        ))}
+      </div>
+    )}
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 mt-4">
       <div class="flex items-center">
         <p class="text-slate-300" data-testid="dog-breed">Breed: {dog.breed}</p>
       </div>
@@ -39,9 +79,64 @@ const { dog } = Astro.props;
       <div class="flex items-center">
         <p class="text-slate-300" data-testid="dog-gender">Gender: {dog.gender}</p>
       </div>
+      {dog.size_estimate && (
+        <div class="flex items-center">
+          <p class="text-slate-300">Size: {dog.size_estimate}</p>
+        </div>
+      )}
     </div>
 
     <h2 class="text-lg font-semibold text-slate-200 mb-2">About {dog.name}</h2>
-    <p class="text-slate-400" data-testid="dog-description">{dog.description}</p>
+    <p class="text-slate-400 mb-6" data-testid="dog-description">{dog.description}</p>
+
+    {/* Personality Traits */}
+    {dog.traits && dog.traits.length > 0 && (
+      <div class="mb-6">
+        <h3 class="text-md font-semibold text-slate-200 mb-3">Personality Traits</h3>
+        <div class="flex flex-wrap gap-2">
+          {dog.traits.map((trait: string) => (
+            <span class="text-sm bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full">
+              {trait}
+            </span>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {/* Adoption Highlights */}
+    {dog.adoption_highlights && dog.adoption_highlights.length > 0 && (
+      <div class="mb-6">
+        <h3 class="text-md font-semibold text-slate-200 mb-3">Why Adopt {dog.name}?</h3>
+        <ul class="space-y-2">
+          {dog.adoption_highlights.map((highlight: string) => (
+            <li class="flex items-start text-slate-300">
+              <svg class="w-5 h-5 text-green-400 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+              </svg>
+              {highlight}
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+
+    {/* Categories */}
+    {dog.categories && dog.categories.length > 0 && (
+      <div class="mb-6">
+        <h3 class="text-md font-semibold text-slate-200 mb-3">Perfect For</h3>
+        <div class="flex flex-wrap gap-2">
+          {dog.categories.map((category: string) => (
+            <span class="text-sm bg-amber-500/20 text-amber-400 px-3 py-1 rounded-full">
+              {category}
+            </span>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {/* SEO Keywords (hidden for SEO purposes) */}
+    {dog.seo_keywords && dog.seo_keywords.length > 0 && (
+      <meta name="keywords" content={dog.seo_keywords.join(', ')} />
+    )}
   </div>
 </div>

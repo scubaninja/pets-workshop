@@ -29,7 +29,7 @@ export default defineConfig({
     {
       command: `node start-test-server.js`,
       url: `http://localhost:${flaskPort}/api/dogs`,
-      reuseExistingServer: false,
+      reuseExistingServer: !process.env.CI,
       timeout: 30_000,
     },
     {

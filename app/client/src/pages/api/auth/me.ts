@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
+import { getApiServerUrl } from '../../../lib/api';
 
-const API_SERVER_URL = process.env.API_SERVER_URL || 'http://localhost:5100';
+const API_SERVER_URL = getApiServerUrl();
 
 export const GET: APIRoute = async ({ request }) => {
   const cookie = request.headers.get('cookie') || '';

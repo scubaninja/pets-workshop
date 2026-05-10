@@ -5,17 +5,17 @@ test.describe('About Page', () => {
     await page.goto('/about');
     
     // Check that the page title is correct
-    await expect(page).toHaveTitle(/About - Tailspin Shelter/);
+    await expect(page).toHaveTitle(/About - MatchMyMutt/);
     
     // Check that the main heading is visible
-    await expect(page.getByRole('heading', { name: 'About Tailspin Shelter' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'About MatchMyMutt' })).toBeVisible();
     
     // Check that content is visible
     await expect(page.getByText('Nestled in the heart of Seattle')).toBeVisible();
-    await expect(page.getByText('The name "Tailspin" reflects')).toBeVisible();
+    await expect(page.getByText('The name "MatchMyMutt" reflects')).toBeVisible();
     
     // Check the fictional organization note
-    await expect(page.getByText('Tailspin Shelter is a fictional organization')).toBeVisible();
+    await expect(page.getByText('MatchMyMutt is a fictional organization')).toBeVisible();
   });
 
   test('should navigate back to homepage from about page', async ({ page }) => {
@@ -26,6 +26,6 @@ test.describe('About Page', () => {
     
     // Should be redirected to homepage
     await expect(page).toHaveURL('/');
-    await expect(page.getByRole('heading', { name: 'Welcome to Tailspin Shelter' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Welcome to MatchMyMutt' })).toBeVisible();
   });
 });

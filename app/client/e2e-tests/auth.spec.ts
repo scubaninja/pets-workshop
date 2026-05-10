@@ -4,7 +4,7 @@ test.describe('Staff Authentication', () => {
   test('guest browsing still works and shows login link', async ({ page }) => {
     await page.goto('/');
 
-    await expect(page.getByRole('heading', { name: 'Welcome to Tailspin Shelter' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Welcome to MatchMyMutt' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Login' })).toBeVisible();
   });
 
@@ -21,7 +21,7 @@ test.describe('Staff Authentication', () => {
     await page.getByTestId('login-submit').click();
 
     await expect(page).toHaveURL('/upload');
-    await expect(page.getByTestId('upload-heading')).toHaveText('AI Listing Agent');
+    await expect(page.getByTestId('upload-heading')).toHaveText('Personal Listing Agent');
     await expect(page.getByRole('link', { name: 'Upload Listing' })).toBeVisible();
   });
 
