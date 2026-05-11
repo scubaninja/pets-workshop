@@ -1,0 +1,20 @@
+[31m[1m13:04:46[22m [ERROR][39m TypeError: Failed to parse URL from http://localhost:5110 /api/auth/login
+[31m[1m13:04:46[22m [ERROR][39m Failed to parse URL from http://localhost:5110 /api/auth/login
+  [1mStack trace:[22m
+[2m[22m
+  [1mCaused by:[22m
+[2m  Invalid URL
+    at new URL (node:internal/url:819:25)
+    at fetch (node:internal/deps/undici/undici:12757:25)
+    at fetch (node:internal/bootstrap/web/exposed-window-or-worker:83:12)
+    [...] See full stack trace in the browser, or rerun with --verbose.[22m
+[31m[1m13:04:47[22m [ERROR][39m TypeError: Failed to parse URL from http://localhost:5110 /api/auth/me
+[31m[1m13:04:47[22m [ERROR][39m Failed to parse URL from http://localhost:5110 /api/auth/me
+  [1mStack trace:[22m
+[2m[22m
+  [1mCaused by:[22m
+[2m  Invalid URL
+    at new URL (node:internal/url:819:25)
+    at fetch (node:internal/deps/undici/undici:12757:25)
+    at fetch (node:internal/bootstrap/web/exposed-window-or-worker:83:12)
+    [...] See full stack trace in the browser, or rerun with --verbose.[22m

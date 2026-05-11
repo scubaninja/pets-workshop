@@ -23,6 +23,12 @@ export default defineConfig({
       fs: {
         allow: fsAllow,
       },
+      proxy: {
+        '/api': {
+          target: 'http://localhost:5100',
+          changeOrigin: true,
+        },
+      },
     },
   },
   adapter: node({

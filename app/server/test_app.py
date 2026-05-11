@@ -12,13 +12,23 @@ class TestApp(unittest.TestCase):
         # Turn off database initialization for tests
         app.config['TESTING'] = True
         
-    def _create_mock_dog(self, dog_id, name, breed):
+    def _create_mock_dog(self, dog_id, name, breed, ai_generated=False, image_path=None, seo_title=None):
         """Helper method to create a mock dog with standard attributes"""
-        dog = MagicMock(spec=['to_dict', 'id', 'name', 'breed'])
+        dog = MagicMock()
         dog.id = dog_id
         dog.name = name
         dog.breed = breed
-        dog.to_dict.return_value = {'id': dog_id, 'name': name, 'breed': breed}
+        dog.ai_generated = ai_generated
+        dog.image_path = image_path
+        dog.seo_title = seo_title
+        dog.to_dict.return_value = {
+            'id': dog_id, 
+            'name': name, 
+            'breed': breed,
+            'ai_generated': ai_generated,
+            'image_path': image_path,
+            'seo_title': seo_title
+        }
         return dog
         
     def _setup_query_mock(self, mock_query, dogs):
@@ -26,6 +36,7 @@ class TestApp(unittest.TestCase):
         mock_query_instance = MagicMock()
         mock_query.return_value = mock_query_instance
         mock_query_instance.join.return_value = mock_query_instance
+        mock_query_instance.order_by.return_value = mock_query_instance
         mock_query_instance.count.return_value = len(dogs)
         mock_query_instance.offset.return_value = mock_query_instance
         mock_query_instance.limit.return_value = mock_query_instance
@@ -99,7 +110,114 @@ class TestApp(unittest.TestCase):
         self.assertIn('total_pages', data)
         self.assertTrue(isinstance(data['dogs'], list))
         self.assertEqual(len(data['dogs']), 1)
-        self.assertEqual(set(data['dogs'][0].keys()), {'id', 'name', 'breed'})
+        # Updated response includes AI fields
+        expected_keys = {'id', 'name', 'breed', 'ai_generated', 'image_path', 'seo_title'}
+        self.assertTrue(expected_keys.issubset(set(data['dogs'][0].keys())))
+
+    @patch('app.User')
+    def test_login_success(self, mock_user_model):
+        """Test staff login with valid credentials"""
+        user = MagicMock()
+        user.id = 1
+        user.check_password.return_value = True
+        user.to_dict.return_value = {
+            'id': 1,
+            'email': 'staff@tailspin.example',
+            'role': 'staff'
+        }
+        mock_user_model.query.filter_by.return_value.first.return_value = user
+
+        response = self.app.post('/api/auth/login', json={
+            'email': 'staff@tailspin.example',
+            'password': 'TailspinDemo123!'
+        })
+
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data)
+        self.assertEqual(data['user']['email'], 'staff@tailspin.example')
+
+        with self.app.session_transaction() as session:
+            self.assertEqual(session['user_id'], 1)
+
+    @patch('app.User')
+    def test_login_invalid_password(self, mock_user_model):
+        """Test login failure with invalid credentials"""
+        user = MagicMock()
+        user.check_password.return_value = False
+        mock_user_model.query.filter_by.return_value.first.return_value = user
+
+        response = self.app.post('/api/auth/login', json={
+            'email': 'staff@tailspin.example',
+            'password': 'wrong-password'
+        })
+
+        self.assertEqual(response.status_code, 401)
+        data = json.loads(response.data)
+        self.assertEqual(data['error'], 'Invalid email or password')
+
+    def test_me_requires_login(self):
+        """Test current user endpoint rejects guests"""
+        response = self.app.get('/api/auth/me')
+
+        self.assertEqual(response.status_code, 401)
+        data = json.loads(response.data)
+        self.assertEqual(data['error'], 'Authentication required')
+
+    @patch('app.db.session.get')
+    def test_me_returns_current_user(self, mock_get):
+        """Test current user endpoint returns authenticated staff user"""
+        user = MagicMock()
+        user.to_dict.return_value = {
+            'id': 1,
+            'email': 'staff@tailspin.example',
+            'role': 'staff'
+        }
+        mock_get.return_value = user
+
+        with self.app.session_transaction() as session:
+            session['user_id'] = 1
+
+        response = self.app.get('/api/auth/me')
+
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data)
+        self.assertEqual(data['user']['role'], 'staff')
+
+    @patch('app.db.session.get')
+    def test_logout_clears_session(self, mock_get):
+        """Test logout clears the authenticated session"""
+        with self.app.session_transaction() as session:
+            session['user_id'] = 1
+
+        response = self.app.post('/api/auth/logout')
+
+        self.assertEqual(response.status_code, 200)
+        with self.app.session_transaction() as session:
+            self.assertNotIn('user_id', session)
+
+    def test_protected_listing_agent_rejects_guest(self):
+        """Test upload analysis endpoint requires authentication"""
+        response = self.app.post('/api/listing-agent/analyze', json={})
+
+        self.assertEqual(response.status_code, 401)
+        data = json.loads(response.data)
+        self.assertEqual(data['error'], 'Authentication required')
+
+    @patch('app.db.session.get')
+    def test_protected_listing_agent_rejects_non_staff(self, mock_get):
+        """Test upload analysis endpoint requires staff role"""
+        user = MagicMock()
+        user.role = 'viewer'
+        mock_get.return_value = user
+
+        with self.app.session_transaction() as session:
+            session['user_id'] = 1
+
+        response = self.app.post('/api/listing-agent/analyze', json={})
+
+        self.assertEqual(response.status_code, 403)
+        data = json.loads(response.data)
+        self.assertEqual(data['error'], 'Staff access required')
 
 
 if __name__ == '__main__':
