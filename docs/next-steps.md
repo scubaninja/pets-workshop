@@ -2,12 +2,15 @@
 
 ## Table of Contents
 
-1. [Next Steps](#next-steps)
-   1. [Provision infrastructure](#provision-infrastructure-and-deploy-application-code)
-   2. [Modify infrastructure](#modify-infrastructure)
-   3. [Getting to production-ready](#getting-to-production-ready)
-2. [Billing](#billing)
-3. [Troubleshooting](#troubleshooting)
+- [Next Steps after `azd init`](#next-steps-after-azd-init)
+  - [Table of Contents](#table-of-contents)
+  - [Next Steps](#next-steps)
+    - [Provision infrastructure and deploy application code](#provision-infrastructure-and-deploy-application-code)
+    - [Modify infrastructure](#modify-infrastructure)
+    - [Getting to production-ready](#getting-to-production-ready)
+  - [Billing](#billing)
+  - [Troubleshooting](#troubleshooting)
+    - [Additional information](#additional-information)
 
 ## Next Steps
 
